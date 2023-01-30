@@ -1,0 +1,856 @@
+ArrayList<GameObject> engine;
+final int INTRO = 0, PLAYING = 1, GAMEOVER = 2, TUTORIAL = 3, LOSE = 4, WIN = 5, LEVEL2 = 6, LEVEL3 = 7;
+boolean wkey, akey, skey, dkey, spacekey, xkey, ckey, grazed, YouWon, upgraded, lastupgrade;
+PImage player1, GreenBullet, Fairy, Fairy2, Fairy3, Fairy4, Level1, Level2, Level3, sideBar, MainMenu, logo;
+int ScreenMode, score, graze, BombCounter, highscore;
+Player ThePlayer;
+int rectX, rectY;      // Position of square button
+int rectSize = 85;     // Diameter of rect
+int PlayBoxX = 20, PlayBoxY = 20, PlayBoxW = 480, PlayBoxH = 480;
+int LevY = PlayBoxY, LevY2 = PlayBoxH + PlayBoxY;
+String highscoreFile = "highscore.txt";
+PFont font;
+
+void keyPressed() {//WASD OR ARROW KEYS TO MOVE
+  if (key == 'w' || key == 'W' || keyCode == UP) wkey = true;
+  if (key == 'a' || key == 'A' || keyCode == LEFT) akey = true;
+  if (key == 's' || key == 'S' || keyCode == DOWN) skey = true;
+  if (key == 'd' || key == 'D' || keyCode == RIGHT) dkey = true;
+  if (key == 'k' || key == 'K' || key == 'x' || key == 'X') xkey = true;
+  if (key == 'l' || key == 'L' || key == 'c' || key == 'C') ckey = true;
+  if (key == 'z' || key == 'Z' || key == 'j' || key == 'J') spacekey = true;
+  final int k = keyCode;
+  if (k == 'P' || k == 'p') { //Pause button is "p"
+    if (looping)  noLoop();
+    else          loop();
+  }
+}
+
+void keyReleased() {
+  if (key == 'w' || key == 'W' || keyCode == UP) wkey = false;
+  if (key == 'a' || key == 'A' || keyCode == LEFT) akey = false;
+  if (key == 's' || key == 'S' || keyCode == DOWN) skey = false;
+  if (key == 'd' || key == 'D' || keyCode == RIGHT) dkey = false;
+  if (key == 'k' || key == 'K' || key == 'x' || key == 'X') xkey = false;
+  if (key == 'l' || key == 'L' || key == 'c' || key == 'C') ckey = false;
+  if (key == 'z' || key == 'Z' || key == 'j' || key == 'J') spacekey = false;
+}
+
+//common Collision detection function taken from jeffreythompson.org
+boolean rectRect(float r1x, float r1y, float r1w, float r1h, 
+  float r2x, float r2y, float r2w, float r2h) {
+  if (r1x + r1w >= r2x &&    // r1 right edge past r2 left
+    r1x <= r2x + r2w &&    // r1 left edge past r2 right
+    r1y + r1h >= r2y &&    // r1 top edge past r2 bottom
+    r1y <= r2y + r2h) {    // r1 bottom edge past r2 top
+    return true;
+  }
+  return false;
+}
+
+//if rectMode(CENTER) from  http://wiki.iad.zhdk.ch/PB/7536656/Simple+Collision+Detection
+boolean CenterrectRect(float r1x, float r1y, float r1w, float r1h, float r2x, float r2y, float r2w, float r2h) {
+  float top1 = r1y-r1h/2;
+  float bottom1 = r1y+r1h/2;
+  float right1 = r1x+r1w/2;
+  float left1 = r1x-r1w/2;
+  float top2 = r2y-r2h/2;
+  float bottom2 = r2y+r2h/2;
+  float right2 = r2x+r2w/2;
+  float left2 = r2x-r2w/2;
+
+  if (top1>bottom2 || bottom1<top2 || right1<left2 || left1>right2) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+void setup() {
+  size (650, 480);// 480 + 170 WHY DOESN'T FX2D WORK HERE
+  reset();
+}
+
+void reset() { //put initial values here to initialize again whenever this function is called.
+  engine = new ArrayList<GameObject>(50000); //capacity reserved when running game, makes it smoother.
+  font = loadFont("ARESSENCE-48.vlw");
+  textFont(font);
+  score = 0;    
+  BombCounter = 3;   
+  graze = 0;
+  YouWon = false;
+  rectMode(CENTER);
+  imageMode(CENTER);
+  logo = loadImage("logo.png");
+  player1 = loadImage("Marisa.png");
+  GreenBullet = loadImage("Bullet.png");
+  Fairy = loadImage("Fairy.png");
+  Fairy2 = loadImage("Fairy2.png");
+  Fairy3 = loadImage("Fairy3.png");
+  Fairy4 = loadImage("Fairy4.png");
+  Level1 = loadImage("1Level1.png");
+  Level1.resize(PlayBoxW, PlayBoxH+21);
+  Level2 = loadImage("Level2.png");
+  Level2.resize(PlayBoxW, PlayBoxH+21);
+  Level3 = loadImage("Level3.png");
+  Level3.resize(PlayBoxW, PlayBoxH+21);
+  sideBar = loadImage("Xflower.jpg");
+  sideBar.resize(170, 480);
+  MainMenu = loadImage("MainMenu.jpg");
+  MainMenu.resize(width, height);
+  engine.add(ThePlayer = new Player());
+  engine.add(new Launcher());
+  ScreenMode = INTRO;
+  boolean lastupgrade = false;
+  boolean upgraded = false;
+}
+
+void RunLevels() {
+  rectMode(CORNER);
+  tint(200);
+  image(sideBar, 480, 0, 170, 480);
+  tint(255);
+  image(logo, 520, 260, 100, 210);
+  textSize(15);
+  float textX = 500, textY = 80;
+  noStroke();
+  fill(200, 200, 0);
+  rect(textX, textY - 10, 130, 20);
+  rect(textX, textY + 10, 130, 20);
+  rect(textX, textY + 30, 40, 20);
+  rect(textX + 80, textY + 30, 50, 20);    
+  fill(255);
+  textAlign(LEFT);
+  text("Score:", textX, textY+1);    
+  text(str(score), textX+100, textY+1);
+  text("Graze:", textX, textY + 21);    
+  text(str(graze), textX+100, textY + 21);    
+  text("Lives:", textX, textY + 40);
+  text("Bombs:", textX + 80, textY + 40);
+  for (float i = 0; i < BombCounter; i++) {
+    stroke(2);
+    fill(130, 0, 0);
+    rect(textX + 80, (textY+40)+(i*33), 20+(i*2), 20+(i*2));
+  }
+  for (float i = 0; i < ThePlayer.hp; i++) {
+    stroke(2);
+    fill(0, 130, 0);
+    rect(textX, (textY+40)+(i*33), 20+(i*2), 20+(i*2));
+  }
+  //if score is at certain points, gain either one bomb or one life
+  //int count = 0;
+  int Dcider = (int)random(1, 3);
+  boolean Dcided = true;
+  //if (ScreenMode == PLAYING || ScreenMode == LEVEL2 || ScreenMode == LEVEL3){count++;}
+  if (round(score % 1500) == 0 && score != 0) {
+    Dcided = false;
+    println(Dcided);
+  }
+  if (Dcider == 1 && Dcided == false) { 
+    if (BombCounter < 3) BombCounter++; 
+    Dcided = true;
+    println(Dcided);
+  }
+  if (Dcider == 2 && Dcided == false) {
+    if (ThePlayer.hp < 3) ThePlayer.hp++; 
+    Dcided = true;
+    println(Dcided);
+  }
+
+
+  fill(0, 0, 230, 200);
+  rect(500, 10, 130, 60, 20);//blue button to go back to Main Menu
+  fill(255);
+  textSize(30);
+  text("MAIN MENU", 500, 50);
+  if (mouseX >= 500 && mouseX <= 500+130 && 
+    mouseY >= 10 && mouseY <= 10+60 && mousePressed) {
+    reset();
+  } 
+
+  //can avoid skipping indices by traversing arraylist backwards
+  for (int i = engine.size()-1; i >= 0; i--) {
+    GameObject obj = engine.get(i);
+    obj.show();
+    obj.act();
+    if (obj.hasDied()) {
+      engine.remove(i);
+    }
+  }
+  if (grazed) {//add graze to score
+    score += graze;
+    graze = 0;
+  }
+  if (ThePlayer.hp == 0) {
+    ScreenMode = LOSE;
+  }
+  if (YouWon) {
+    ScreenMode = WIN;
+  }
+  if(round(score) == 1500 && !upgraded){
+      ThePlayer.myGun = new GunDos();
+      upgraded = true;
+      println(upgraded);
+    }
+  
+  if(round(score) == 3500 && !lastupgrade){
+    ThePlayer.myGun = new DeathGun();
+    lastupgrade = true;
+  }
+}
+
+void draw() {
+  switch(ScreenMode) {
+  case INTRO:/*===================================================================================================*/
+    background(120);
+    image(MainMenu, width/2, height/2);
+    rectMode(CORNER);
+    rectX = width/3 + 10;
+    rectY = height/3 - 30;
+    fill(30, 230, 30, 120);
+    noStroke();    
+    rect(rectX, rectY, rectSize*2, rectSize, 20);//Start playing button
+    fill(255);
+    textSize(60);
+    textAlign(CENTER);
+    text("START", rectX + 80, rectY + rectSize/2 + 13);
+
+    fill(230, 230, 120, 120);
+    rect(rectX, rectY+rectSize+30, rectSize*2, rectSize, 20); //Tutorial button
+    fill(255);
+    textSize(30);
+    textAlign(CENTER);
+    text("INSTRUCTIONS", rectX + 85, rectY + rectSize/2 +rectSize+30);
+
+    if (mouseX >= rectX && mouseX <= rectX+rectSize*2 && 
+      mouseY >= rectY && mouseY <= rectY+rectSize && mousePressed) {
+      ScreenMode = PLAYING;
+    } else if (mouseX >= rectX && mouseX <= rectX+rectSize*2 && 
+      mouseY >= rectY+rectSize+30 && mouseY <= rectY+rectSize+30 + rectSize && mousePressed) {
+      ScreenMode = TUTORIAL;
+    } else {
+      ScreenMode = INTRO;
+    }    
+    break;
+  case PLAYING:/*===================================================================================================*/
+    background(120);
+    imageMode(CORNER);//scrolling backround image
+    image(Level1, 0, LevY);  
+    image(Level1, 0, LevY2);
+    LevY++;  
+    LevY2++;
+    if (LevY > PlayBoxH) {
+      LevY = -PlayBoxH;
+    }
+    if (LevY2 > PlayBoxH) {
+      LevY2 = -PlayBoxH;
+    }
+    RunLevels();
+    break;
+  case LEVEL2:/*===================================================================================================*/
+    background(120);
+    imageMode(CORNER);//scrolling backround image
+    image(Level2, 0, LevY);  
+    image(Level2, 0, LevY2);
+    LevY++;  
+    LevY2++;
+    if (LevY > PlayBoxH) {
+      LevY = -PlayBoxH;
+    }
+    if (LevY2 > PlayBoxH) {
+      LevY2 = -PlayBoxH;
+    }
+    RunLevels();
+    break;
+  case LEVEL3:/*===================================================================================================*/
+    background(120);
+    imageMode(CORNER);//scrolling backround image
+    image(Level3, 0, LevY);  
+    image(Level3, 0, LevY2);
+    LevY++;  
+    LevY2++;
+    if (LevY > PlayBoxH) {
+      LevY = -PlayBoxH;
+    }
+    if (LevY2 > PlayBoxH) {
+      LevY2 = -PlayBoxH;
+    }
+    RunLevels();
+    break;
+  case TUTORIAL:/*===================================================================================================*/
+    background(120);
+    image(MainMenu, width/2, height/2);
+    fill(90, 120, 230, 240);
+    rect(20, 20, width - 40, height - 40, 30);
+    fill(230, 120, 90);
+    textAlign(LEFT);
+    text("WASD or ARROW KEYS to move", 40, 50);
+    text("Z or J to fire bullets", 40, 70);
+    text("X or K to BOMB", 40, 90);
+    text("C or L to slow down", 40, 110);
+    text("P to pause the game", 40, 130);
+    text("BOMBS will clear the screen of enemies", 40, 160);
+    text("You get 3 bombs and 3 lives", 40, 190);
+    text("and can earn more by getting a higher score", 40, 210);
+    text("You get 5 seconds of invincibility after being hit", 40, 300);
+    if (mousePressed) ScreenMode = INTRO;
+    break;
+  case WIN:
+    background(120);
+    textAlign(CENTER);
+    rectMode(CENTER);
+    textSize(18);
+    fill(255, 0, 0);
+    text("You won! Amazing stuff.", width/2, height/3);
+    textSize(14);
+    fill(0, 0, 255);
+    int buttonW = 100, buttonH = 100;
+    rect(width/2, height/2, buttonW, buttonH);
+    fill(255);
+    text("MAIN MENU", width/2, height/2);
+    if (mouseX >= width/2 - buttonW/2 && mouseX <= width/2+buttonW/2 && 
+      mouseY >= height/2 - buttonH/2 && mouseY <= height/2+buttonH/2 && mousePressed) {
+      ScreenMode = INTRO;
+    }
+    rectMode(CENTER);
+    imageMode(CENTER);
+    break;
+  case LOSE:
+    background(120);
+    textAlign(CENTER);
+    rectMode(CENTER);
+    textSize(18);
+    fill(255, 0, 0);
+    text("You lost! Shoot Harder!", width/2, height/3);
+    textSize(14);
+    fill(0, 0, 255);
+    int buttW = 100, buttH = 100;
+    rect(width/2, height/2, buttW, buttH);
+    fill(255);
+    text("MAIN MENU", width/2, height/2);
+    if (mouseX >= width/2 - buttW/2 && mouseX <= width/2+buttW/2 && 
+      mouseY >= height/2 - buttH/2 && mouseY <= height/2+buttH/2 && mousePressed) {
+      ScreenMode = INTRO;
+    }
+    rectMode(CENTER);
+    imageMode(CENTER);
+    break;
+  default: 
+    println("this should not be seen"); //everything's gone wrong
+    break;
+  }
+}
+
+class Bullet extends GameObject {//level 1 shooting
+
+  Bullet(float incomingX, float incomingY, float incomingdx, float incomingdy, boolean _good) {//regular bullets
+    x = incomingX;
+    y = incomingY;
+    dx = incomingdx;
+    dy = incomingdy;
+    hp = 1;
+    w = 25;
+    h = 25;
+    good = _good;//true if from player, false if from enemy.
+  }
+  
+  Bullet(boolean _good, boolean _isBomb) { //bombs
+    x = ThePlayer.x;
+    y = ThePlayer.y;
+    dx = 0;
+    dy = 0;
+    hp = 1;
+    w = 10;
+    h = 10;
+    good = _good;
+    isBomb = _isBomb;
+  }
+ 
+  
+  void show(){
+    if (good){
+      if (isBomb){
+          stroke(2);
+          noFill();
+          rectMode(CENTER);
+          rect(x,y,w,h);
+      } else {
+        image(GreenBullet, x, y, w, h);//player bullet
+      }
+    } else {
+      fill(255, 0,0);//enemy bullet
+      ellipse(x,y,w,h);
+    }
+  }
+  
+  void act(){
+    x += dx;
+    y += dy;
+    if (isBomb) {
+      x += random(-10, 10);
+      y += random(-10, 10);
+      w += 10;   
+      h += 10;
+    }
+  } 
+  
+
+  boolean hasDied() {
+    return y < 0 || y > 480 || x < 0 || x > 480 || hp <= 0;
+  }
+}
+class Enemy extends GameObject {
+
+  Enemy(float incomingX, float incomingY) {
+    x = incomingX;
+    y = incomingY;
+    dx = 0;
+    dy = 3;
+    hp = 3;
+    w = 25;
+    h = 25;
+  }
+
+  void show() {
+    image(Fairy, x, y, w, h);
+  }
+  boolean hasShot = true;
+  void act() {
+    x += dx;
+    y += dy;
+    checkCollisions();
+  }
+
+
+  void checkCollisions() {
+    for (int i = 0; i < engine.size(); i++) {
+      GameObject b = engine.get(i);
+      if (b instanceof Bullet) {//check GameObjects, if bullet collides, then yada yada
+        if (b.good == true && b.isBomb == false && rectRect(x, y, w, h, b.x, b.y, b.w, b.h)) { // this uses the CORNER rect checker
+          hp -= 1;
+          b.hp = 0;
+          score += 10;
+          engine.add(new Particles(b.x, b.y, random(-5, 5), random(-5, 5)));
+          engine.add(new Particles(x, y, random(-5, 5), random(-5, 5)));
+        }
+        if (b.good == true && b.isBomb == true && CenterrectRect(x, y, w, h, b.x, b.y, b.w, b.h)) { //check if bomb touches using the Center Rect checker
+          hp -= 50;
+          score += 10;
+          engine.add(new Particles(b.x, b.y, random(-5, 5), random(-5, 5)));
+          engine.add(new Particles(x, y, random(-5, 5), random(-5, 5)));
+          if (b.w >= 480) b.hp = 0;
+        }
+      }
+    }
+  }
+
+
+  boolean hasDied() {
+    return y > height || hp <= 0;
+  }
+}
+
+class FastFairy extends Enemy {
+  FastFairy(float incomingX, float incomingY) {
+    super(incomingX, incomingY);
+    dy = 5;
+  }
+  void show(){image(Fairy3, x, y, w, h);}
+  void act() {
+    x += dx;
+    y += dy;
+    checkCollisions();
+    if (hasDied()) {
+      score += 20;
+    }
+  }
+}
+
+class CurveFairy extends Enemy{
+  CurveFairy(float incomingX, float incomingY, float angle){
+    super(incomingX, incomingY);
+    angle += PI/90 * incomingX + incomingX;
+    dx = sin(angle);
+  }
+  void show(){image(Fairy4, x, y, w, h);}
+}
+
+class YinOrb extends Enemy {
+  YinOrb(float incomingX, float incomingY) {
+    super(incomingX, incomingY);
+    w = 50;
+    h = 50;
+    hp = 5;
+  }
+  void show(){image(Fairy2, x, y, w, h);}
+  boolean canShoot = true;
+  int canShootCounter;  
+  void act() {
+    if (y < height/3) {
+      x += dx;
+      y += dy;
+    } else {
+      float angle = atan2(ThePlayer.y - y, ThePlayer.x - x);
+      float bulletdx = cos(angle)*10;
+      float bulletdy = sin(angle)*10;
+      if (canShoot) {
+        noStroke();
+        engine.add(new Bullet(x, y, bulletdx, bulletdy - 5, false));
+        canShoot = false;
+      } else {
+        canShootCounter++;
+        if (canShootCounter % 100 == 0) {
+          canShoot = true;
+        }
+      }
+    }
+    checkCollisions();
+    if (hasDied()) {
+      score += 30;
+    }
+  }
+}
+abstract class GameObject { //categorizes other things like enemies and bullets
+  float x, y, dx, dy, w, h, hp;
+  boolean good = true, isBomb = false;
+  GameObject() {
+  }
+
+  void show() {
+  }
+
+  void act() {
+  }
+
+  boolean hasDied() {
+    return false;
+  }
+}
+abstract class Gun {
+  float cooldown, threshold; //threshold is how much max time before cooldown
+
+  Gun() {
+  }
+
+  void shoot() {
+    if (cooldown == threshold) {
+      engine.add(new Bullet(ThePlayer.x, ThePlayer.y, 0, -15, true));
+      cooldown = 0;
+      //println("I'm shooting");
+    }
+  }
+
+  void reload() {
+    if (cooldown < threshold) {
+      cooldown++;
+    }
+  }
+}
+
+class BasicGun extends Gun {
+  BasicGun() {
+    threshold = 10;
+    cooldown = 0;
+  }
+}
+
+class GunDos extends Gun { //GUN LEVEL 2
+   GunDos(){
+     threshold = 10;
+     cooldown = 0;
+   }
+   void shoot(){
+     if (cooldown == threshold){
+      engine.add(new Bullet(ThePlayer.x + 6, ThePlayer.y, 0, -15, true));
+      engine.add(new Bullet(ThePlayer.x - 6, ThePlayer.y, 0, -15, true));
+      cooldown = 0;
+     }
+   }
+}
+
+class DeathGun extends Gun { //max power gun
+  DeathGun() {
+    threshold = 10;
+    cooldown = 0;
+  }
+  void shoot() {
+    if (cooldown == threshold) {
+      engine.add(new Bullet(ThePlayer.x + 8, ThePlayer.y, -2, -15, true));
+      engine.add(new Bullet(ThePlayer.x - 8, ThePlayer.y, 2, -15, true));
+      engine.add(new Bullet(ThePlayer.x + 6, ThePlayer.y, 0, -15, true));
+      engine.add(new Bullet(ThePlayer.x - 6, ThePlayer.y, 0, -15, true));
+      engine.add(new Bullet(ThePlayer.x, ThePlayer.y, 0, -15, true));
+      cooldown = 0;
+    }
+  }
+}
+
+int counter = 0;
+boolean YesCount = false;
+class MLGgun extends Gun { // THIS IS THE BOMB
+  MLGgun() {
+    threshold = 50;
+    cooldown = 50;
+  }
+  void shoot() {    
+    if (cooldown == threshold && BombCounter != 0 && frameCount % 8 == 0) { //delay of 8 counts, so as not to use every bomb in a single button press
+      BombCounter--;
+      for (int i = 0; i < 5; i++){ //player's bomb circles
+        engine.add(new Bullet(true, true));//this is actually the bomb
+      }
+    }
+  }
+}
+class Launcher extends GameObject {
+  float angle, count; 
+  Launcher() {
+    angle = 0;
+    count = 0;
+    x = width/2;
+    y = -15;
+    dx = 0;
+    dy = 0;
+  }
+
+  void show() {
+    /*fill(100);// to know where the launcher is spawning
+    ellipse(x,y,100,100);*/
+  }
+  
+  void act() {//this is the enemy script
+    if (ScreenMode == PLAYING) {//one minute per level.
+      count++;
+      if (count < 100) {
+      } else if (count < 1000) {
+        straightLine(ThePlayer.x - random(-10, 10));
+        scurve(240, 120);
+      } else if (count < 1600) {
+        scurve(240, 240);
+      } else if (count < 2500) {
+        scurve(100, 200);
+      } else if (count < 3000) {
+        straightLine(290);
+        randomWave();
+      } else if (count < 4600) {
+        scurve(240, 240);
+        straightLine(50);
+        straightLine(400);
+      } else if (count < 5500) {
+        scurve(100, 200);
+        randomWave();
+      } else if (count < 6000){
+        randomWave();
+      } else if (count < 6100) {ScreenMode = LEVEL2; count = 0;}
+    }
+    if (ScreenMode == LEVEL2) {
+      count++;
+      if (count < 100) {
+      } else if (count < 1000) {
+        straightLine(200);
+        scurve(240, 120);
+      } else if (count < 1600) {
+        scurve(240, 240);
+        randomWave();
+      } else if (count < 2500) {
+        scurve(100, 200);
+      } else if (count < 3000) {
+        straightLine(200);
+        randomWave();
+      } else if (count < 4600) {
+        scurve(240, 240);
+        straightLine(50);
+        straightLine(400);
+      } else if (count < 5500) {
+        scurve(100, 200);
+        randomWave();
+      } else if (count < 6000){
+        randomWave();
+      } else if (count < 6100) {ScreenMode = LEVEL3; count = 0;}
+    }
+    if (ScreenMode == LEVEL3) {
+      count++;
+      if (count < 100) {
+      } else if (count < 1000) {
+        straightLine(ThePlayer.x);
+        randomWave();
+        scurve(240, 120);
+      } else if (count < 1600) {
+        scurve(240, 240);
+        straightLine(ThePlayer.x);
+      } else if (count < 2500) {
+        scurve(100, 200);
+      } else if (count < 3000) {
+        straightLine(200);
+        randomWave();
+      } else if (count < 4600) {
+        scurve(240, 240);
+        straightLine(50);
+        randomWave();
+        straightLine(400);
+      } else if (count < 5500) {
+        scurve(100, 200);
+        randomWave();
+      } else if (count < 6000){
+        randomWave();
+        randomWave();
+        straightLine(ThePlayer.x);
+      } else if (count < 6100) {YouWon = true;}
+    }
+  }
+
+  void randomWave() {
+    x = random(50, 430);
+    if (count % 100 == 0) {
+      engine.add(new FastFairy(x, y));
+      engine.add(new YinOrb(x, y));
+    }
+  }
+
+  void straightLine(float incomingX) {
+    x = incomingX;
+    if (count % 50 == 0) { //every 50 counts, if remainder = 0, spawn enemy
+      engine.add(new FastFairy(x, y));
+    }
+  }
+  
+  void scurve(float ampl, float pos){
+    x = sin(angle) * ampl + pos;
+    angle += PI/90;
+    if (count % 30 == 0){
+      engine.add(new Enemy(x,y));
+    }
+  }
+
+
+  boolean hasDied() {
+    return false;
+  }
+}
+class Particles extends GameObject {
+  Particles(float incomingX, float incomingY, float _dx, float _dy){
+    x = incomingX;
+    y = incomingY;
+    dx = _dx;
+    dy = _dy;
+    hp = random(100, 255);
+    w = 5;
+    h = 5;
+  }
+  
+  void show(){
+    fill(dx, dy, dx, hp);
+    rect(x,y,w,h);
+  }
+  
+  void act() {
+    x += dx;
+    y += dy;
+    hp -= 10;
+  }
+  
+  boolean hasDied(){
+    return y < 0 || y > 480 || x < 0 || x > 480 || hp <= 0;
+  }
+}
+class Player extends GameObject {
+  Gun myGun, Bomb;
+  boolean BeenHit; //the recovery frames
+  Player() {
+    x = PlayBoxW/2;
+    y = PlayBoxH*4/5;
+    dx = 0;
+    dy = 0;
+    w = 30;
+    h = 30;
+    hp = 3;
+    myGun = new BasicGun();
+    Bomb = new MLGgun();
+  }
+
+
+  void show() {
+    image(player1, x, y, w, h); //The player's sprite
+  }
+
+  void act() {
+    dx = 0;
+    dy = 0;
+    if (wkey) dy = -5;
+    if (akey) dx = -5;
+    if (skey) dy = 5;
+    if (dkey) dx = 5;
+    if (ckey) { //hold down c to slow down
+      if (wkey) dy = -2;
+      if (akey) dx = -2;
+      if (skey) dy = 2;
+      if (dkey) dx = 2;
+      circle(ThePlayer.x, ThePlayer.y, 3);
+    }
+    if (spacekey) {
+      myGun.shoot();
+    }
+    if (xkey) {
+      Bomb.shoot();
+    }
+    x += dx;
+    y += dy;
+    if (x <   0) { 
+      x = 1;
+    }
+    if (x > 480) { 
+      x =   479;
+    }
+    if (y <   0) { 
+      y = 1;
+    }
+    if (y > 480) { 
+      y =   479;
+    }
+    myGun.reload();
+  }
+
+
+  int counter = 0;
+  boolean hasDied() {
+    for (int i = 0; i < engine.size(); i++) {
+      GameObject b = engine.get(i);
+      if (b instanceof Bullet) {//check GameObjects, if bullet collides, then take off 1 life
+        if (b.good == false && rectRect(x, y, w - 2, h - 2, b.x, b.y, b.w, b.h) && !BeenHit) { //Player's hurtbox has been decreased
+          hp -= 1;
+          b.hp = 0;
+          fill(255, 0, 0);  
+          circle(ThePlayer.x, ThePlayer.y, 25);
+          x = PlayBoxW/2;
+          y = PlayBoxH*4/5;
+          engine.add(new Particles(x, y, random(-5, 5), random(-5, 5)));
+          BeenHit = true;
+        }
+      }
+      if (b instanceof Enemy && rectRect(x, y, w - 2, h - 2, b.x, b.y, b.w, b.h) && !BeenHit) {
+        hp -= 1;
+        b.hp = 0;
+        fill(255, 0, 0);  
+        circle(ThePlayer.x, ThePlayer.y, 25);
+        x = PlayBoxW/2;
+        y = PlayBoxH*4/5;
+        engine.add(new Particles(x, y, random(-5, 5), random(-5, 5)));
+        BeenHit = true;
+      }
+      if (b.good == false && rectRect(x, y, w+2, h+2, b.x, b.y, b.w, b.h)) {
+        graze++; 
+        grazed = true;
+      } //if close to enemy, then increase graze counter.
+    }
+    if (BeenHit) {
+      counter++;
+      fill(0, 0, 180, 180);
+      circle(ThePlayer.x + 10, ThePlayer.y, w+10);
+      if (counter >= 500) { //recovery or invincibility frames, 5 seconds
+        BeenHit = false;
+        counter = 0;
+      }
+    }
+    if (hp <= 0) return true;
+    return false;
+  }
+}
